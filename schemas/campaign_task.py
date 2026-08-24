@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -12,7 +11,7 @@ class CampaignTaskBase(BaseModel):
 
 
 class CampaignTaskCreate(CampaignTaskBase):
-    pass
+    status: str = "TODO"          # TODO / IN_PROGRESS / DONE
 
 
 class CampaignTaskUpdate(BaseModel):
@@ -32,3 +31,5 @@ class CampaignTaskResponse(CampaignTaskBase):
     assignee_id: int | None = None
     status: str = "TODO"
     created_at: datetime
+
+

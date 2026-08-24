@@ -17,6 +17,7 @@ from schemas.pagination import PaginatedResponse
 from service.service import (
     add_campaign_task,
     get_campaign_tasks,
+    get_campaign_task_by_id,
     update_campaign_task,
     delete_campaign_task,
     create_task_comment,
@@ -58,6 +59,8 @@ def handle_get_campaign_tasks(
     order: str = "desc",
     status: str | None = None,
     priority: str | None = None,
+    assignee_id: int | None = None,
+    search: str | None = None,
     db: Session = Depends(get_DB),
     current_user: User = Depends(get_current_user),
 ):
@@ -71,7 +74,27 @@ def handle_get_campaign_tasks(
         order=order,
         status=status,
         priority=priority,
+        assignee_id=assignee_id,
+        search=search,
     )
+
+
+@router.get(
+    "/campaign-tasks/{id}",
+    status_code=status.HTTP_200_OK,
+    response_model=CampaignTaskResponse,
+)
+def handle_get_campaign_task_by_id(
+    id: int,
+    db: Session = Depends(get_DB),
+    current_user: User = Depends(get_current_user),
+):
+    return get_campaign_task_by_id(
+        task_id=id,
+        user_id=current_user.id,
+        db=db,
+    )
+
 
 
 @router.patch(

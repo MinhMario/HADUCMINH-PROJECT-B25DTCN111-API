@@ -1,5 +1,5 @@
 import math
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, Query
 from sqlalchemy import or_, asc, desc
 
 from core.exceptions import BadRequestException, ForbiddenException, NotFoundException
@@ -13,6 +13,50 @@ from models.user import User
 from models.campaign import Campaign, CampaignMember
 from models.campaign_task import CampaignTask
 from models.task_comment import TaskComment
+
+
+def paginate(query: Query, page: int = 1, size: int = 10) -> dict:
+    if page < 1:
+        page = 1
+    if size < 1:
+        size = 10
+
+    total = query.count()
+    total_pages = math.ceil(total / size) if size > 0 else 0
+    items = query.offset((page - 1) * size).limit(size).all()
+
+    return {
+        "total": total,
+        "page": page,
+        "size": size,
+        "total_pages": total_pages,
+        "items": items,
+    }
+
+
+def apply_sorting(
+    query: Query,
+    sort_by: str | None = None,
+    order: str = "asc",
+    sort_mapping: dict | None = None,
+    default_col = None,
+    nulls_last_fields: list[str] | None = None,
+) -> Query:
+    if not sort_mapping:
+        return query
+
+    col = sort_mapping.get(sort_by, default_col)
+    if col is None:
+        return query
+
+    is_desc = (order or "asc").lower() == "desc"
+
+    if nulls_last_fields and sort_by in nulls_last_fields and not is_desc:
+        return query.order_by(col.is_(None), col.asc())
+
+    if is_desc:
+        return query.order_by(col.desc())
+    return query.order_by(col.asc())
 
 
 
@@ -58,11 +102,6 @@ def get_users(
     search: str | None = None,
     is_active: bool | None = None
 ):
-    if page < 1:
-        page = 1
-    if size < 1:
-        size = 10
-
     query = db.query(User)
 
     if search:
@@ -75,30 +114,15 @@ def get_users(
     if is_active is not None:
         query = query.filter(User.is_active == is_active)
 
-    total = query.count()
-    total_pages = math.ceil(total / size) if size > 0 else 0
-
     sort_mapping = {
         "id": User.id,
         "full_name": User.full_name,
         "email": User.email,
         "role": User.role,
     }
-    sort_col = sort_mapping.get(sort_by, User.id)
-    if order.lower() == "desc":
-        query = query.order_by(sort_col.desc())
-    else:
-        query = query.order_by(sort_col.asc())
+    query = apply_sorting(query, sort_by=sort_by, order=order, sort_mapping=sort_mapping, default_col=User.id)
 
-    items = query.offset((page - 1) * size).limit(size).all()
-
-    return {
-        "total": total,
-        "page": page,
-        "size": size,
-        "total_pages": total_pages,
-        "items": items,
-    }
+    return paginate(query, page=page, size=size)
 
 
 def create_campaign(campaign_in: CampaignCreate, owner_id: int, db: Session) -> Campaign:
@@ -131,11 +155,6 @@ def list_campaigns(
     order: str = "desc",
     search: str | None = None
 ):
-    if page < 1:
-        page = 1
-    if size < 1:
-        size = 10
-
     member_campaign_ids = (
         db.query(CampaignMember.campaign_id)
         .filter(CampaignMember.user_id == user_id)
@@ -153,30 +172,14 @@ def list_campaigns(
         search = search.strip()
         query = query.filter(Campaign.name.ilike(f"%{search}%"))
 
-    total = query.count()
-    total_pages = math.ceil(total / size) if size > 0 else 0
-
     sort_mapping = {
         "created_at": Campaign.created_at,
         "name": Campaign.name,
         "id": Campaign.id,
     }
-    sort_col = sort_mapping.get(sort_by, Campaign.created_at)
-    if order.lower() == "asc":
-        query = query.order_by(sort_col.asc())
-    else:
-        query = query.order_by(sort_col.desc())
+    query = apply_sorting(query, sort_by=sort_by, order=order, sort_mapping=sort_mapping, default_col=Campaign.created_at)
 
-    items = query.offset((page - 1) * size).limit(size).all()
-
-
-    return {
-        "total": total,
-        "page": page,
-        "size": size,
-        "total_pages": total_pages,
-        "items": items,
-    }
+    return paginate(query, page=page, size=size)
 
 
 def read_campaigns(campaign_id: int, db: Session, user_id: int) -> Campaign:
@@ -338,6 +341,10 @@ def get_campaign_members(campaign_id: int, db: Session, user_id: int):
     )
 
 
+VALID_TASK_STATUSES = {"TODO", "IN_PROGRESS", "DONE"}
+VALID_TASK_PRIORITIES = {"LOW", "MEDIUM", "HIGH"}
+
+
 def add_campaign_task(campaign_id: int, db: Session, user_id: int, payload: CampaignTaskCreate) -> CampaignTask:
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id, Campaign.is_deleted == False).first()
     if not campaign:
@@ -345,6 +352,12 @@ def add_campaign_task(campaign_id: int, db: Session, user_id: int, payload: Camp
     is_member = db.query(CampaignMember).filter(CampaignMember.user_id == user_id, CampaignMember.campaign_id == campaign_id).first()
     if not is_member and campaign.owner_id != user_id:
         raise ForbiddenException('Bạn không phải thành viên của chiến dịch này')
+
+    if payload.status and payload.status.upper() not in VALID_TASK_STATUSES:
+        raise BadRequestException("Trạng thái không hợp lệ (chỉ chấp nhận TODO, IN_PROGRESS, DONE)")
+
+    if payload.priority and payload.priority.upper() not in VALID_TASK_PRIORITIES:
+        raise BadRequestException("Độ ưu tiên không hợp lệ (chỉ chấp nhận LOW, MEDIUM, HIGH)")
 
     if payload.assignee_id is not None:
         is_assignee_member = db.query(CampaignMember).filter(
@@ -359,13 +372,15 @@ def add_campaign_task(campaign_id: int, db: Session, user_id: int, payload: Camp
         title=payload.title,
         description=payload.description,
         due_date=payload.due_date,
-        priority=payload.priority,
+        priority=payload.priority.upper() if payload.priority else "MEDIUM",
+        status=payload.status.upper() if payload.status else "TODO",
         assignee_id=payload.assignee_id
     )
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
     return new_task
+
 
 
 def get_campaign_tasks(
@@ -378,6 +393,8 @@ def get_campaign_tasks(
     order: str = "desc",
     status: str | None = None,
     priority: str | None = None,
+    assignee_id: int | None = None,
+    search: str | None = None,
 ):
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id, Campaign.is_deleted == False).first()
     if not campaign:
@@ -386,20 +403,17 @@ def get_campaign_tasks(
     if not is_member and campaign.owner_id != user_id:
         raise ForbiddenException('Bạn không phải thành viên của chiến dịch này')
 
-    if page < 1:
-        page = 1
-    if size < 1:
-        size = 10
-
     query = db.query(CampaignTask).filter(CampaignTask.campaign_id == campaign_id)
 
     if status:
         query = query.filter(CampaignTask.status == status)
     if priority:
         query = query.filter(CampaignTask.priority == priority)
-
-    total = query.count()
-    total_pages = math.ceil(total / size) if size > 0 else 0
+    if assignee_id is not None:
+        query = query.filter(CampaignTask.assignee_id == assignee_id)
+    if search:
+        search = search.strip()
+        query = query.filter(CampaignTask.title.ilike(f"%{search}%"))
 
     sort_mapping = {
         "created_at": CampaignTask.created_at,
@@ -409,31 +423,38 @@ def get_campaign_tasks(
         "title": CampaignTask.title,
         "id": CampaignTask.id,
     }
-    sort_col = sort_mapping.get(sort_by, CampaignTask.created_at)
+    query = apply_sorting(
+        query,
+        sort_by=sort_by,
+        order=order,
+        sort_mapping=sort_mapping,
+        default_col=CampaignTask.created_at,
+        nulls_last_fields=["due_date"]
+    )
 
-    if sort_by == "due_date":
-        if order.lower() == "asc":
-            # Đảm bảo các task có deadline được xếp trước, task không có deadline (NULL) nằm ở cuối
-            query = query.order_by(CampaignTask.due_date.is_(None), CampaignTask.due_date.asc())
-        else:
-            query = query.order_by(CampaignTask.due_date.desc())
-    else:
-        if order.lower() == "asc":
-            query = query.order_by(sort_col.asc())
-        else:
-            query = query.order_by(sort_col.desc())
-
-    items = query.offset((page - 1) * size).limit(size).all()
-
-    return {
-        "total": total,
-        "page": page,
-        "size": size,
-        "total_pages": total_pages,
-        "items": items,
-    }
+    return paginate(query, page=page, size=size)
 
 
+def get_campaign_task_by_id(task_id: int, user_id: int, db: Session) -> CampaignTask:
+    task = db.query(CampaignTask).filter(CampaignTask.id == task_id).first()
+    if not task:
+        raise NotFoundException("Task không tồn tại")
+
+    campaign = db.query(Campaign).filter(
+        Campaign.id == task.campaign_id,
+        Campaign.is_deleted == False
+    ).first()
+    if not campaign:
+        raise NotFoundException("Chiến dịch không tồn tại")
+
+    is_member = db.query(CampaignMember).filter(
+        CampaignMember.campaign_id == campaign.id,
+        CampaignMember.user_id == user_id
+    ).first()
+    if not is_member and campaign.owner_id != user_id:
+        raise ForbiddenException("Bạn không phải thành viên của chiến dịch này")
+
+    return task
 
 
 def update_campaign_task(
@@ -477,8 +498,19 @@ def update_campaign_task(
         if not is_assignee_member and campaign.owner_id != update_data["assignee_id"]:
             raise BadRequestException("Người được gán không thuộc chiến dịch này")
 
+    if "status" in update_data and update_data["status"] is not None:
+        if update_data["status"].upper() not in VALID_TASK_STATUSES:
+            raise BadRequestException("Trạng thái không hợp lệ (chỉ chấp nhận TODO, IN_PROGRESS, DONE)")
+        update_data["status"] = update_data["status"].upper()
+
+    if "priority" in update_data and update_data["priority"] is not None:
+        if update_data["priority"].upper() not in VALID_TASK_PRIORITIES:
+            raise BadRequestException("Độ ưu tiên không hợp lệ (chỉ chấp nhận LOW, MEDIUM, HIGH)")
+        update_data["priority"] = update_data["priority"].upper()
+
     for field, value in update_data.items():
         setattr(task, field, value)
+
 
     db.commit()
     db.refresh(task)
@@ -572,31 +604,15 @@ def get_task_comments(
     if not is_member and campaign.owner_id != user_id:
         raise ForbiddenException("Bạn không phải thành viên của chiến dịch này")
 
-    if page < 1:
-        page = 1
-    if size < 1:
-        size = 10
-
     query = db.query(TaskComment).filter(TaskComment.task_id == task_id)
+    query = apply_sorting(
+        query,
+        sort_by=sort_by,
+        order=order,
+        sort_mapping={"created_at": TaskComment.created_at},
+        default_col=TaskComment.created_at
+    )
 
-    total = query.count()
-    total_pages = math.ceil(total / size) if size > 0 else 0
-
-    if order.lower() == "desc":
-        query = query.order_by(TaskComment.created_at.desc())
-    else:
-        query = query.order_by(TaskComment.created_at.asc())
-
-    items = query.offset((page - 1) * size).limit(size).all()
-
-    return {
-        "total": total,
-        "page": page,
-        "size": size,
-        "total_pages": total_pages,
-        "items": items,
-    }
-
-
+    return paginate(query, page=page, size=size)
 
 
