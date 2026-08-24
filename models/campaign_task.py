@@ -21,3 +21,6 @@ class CampaignTask(Base):
 
     campaign = relationship("Campaign", back_populates="tasks")
     assignee = relationship("User", back_populates="assigned_tasks")
+    comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan")
+
+

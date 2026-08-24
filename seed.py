@@ -2,16 +2,20 @@ from database import SessionLocal
 
 from core.security import hash_pass
 from models.user import User
-from models.campaign import Campaign
+from models.campaign import Campaign, CampaignMember
 from models.campaign_task import CampaignTask
+from models.task_comment import TaskComment
 
 
 def seed_data():
     db = SessionLocal()
+    db.query(TaskComment).delete()
     db.query(CampaignTask).delete()
+    db.query(CampaignMember).delete()
     db.query(Campaign).delete()
     db.query(User).delete()
     db.commit()
+
     user1 = User(
         email="admin@gmail.com",
         full_name="Admin",
@@ -43,6 +47,19 @@ def seed_data():
     db.commit()
     db.refresh(campaign1)
 
+    member1 = CampaignMember(
+        campaign_id=campaign1.id,
+        user_id=user1.id,
+        role="OWNER",
+    )
+    member2 = CampaignMember(
+        campaign_id=campaign1.id,
+        user_id=user2.id,
+        role="MEMBER",
+    )
+    db.add_all([member1, member2])
+    db.commit()
+
     task1 = CampaignTask(
         title="Thiết kế banner",
         status="TODO",
@@ -59,10 +76,26 @@ def seed_data():
 
     db.add_all([task1, task2])
     db.commit()
+    db.refresh(task1)
+    db.refresh(task2)
+
+    comment1 = TaskComment(
+        task_id=task1.id,
+        user_id=user2.id,
+        content="Đã chuẩn bị mockup kích thước 1200x628px cho Facebook ads.",
+    )
+    comment2 = TaskComment(
+        task_id=task1.id,
+        user_id=user1.id,
+        content="Ok duyệt, nhớ dùng tone màu thương hiệu nhé!",
+    )
+    db.add_all([comment1, comment2])
+    db.commit()
 
     db.close()
 
-    print("Seed dữ liệu thành công!")
+    print("Seed data successfully!")
+
 
 
 if __name__ == "__main__":

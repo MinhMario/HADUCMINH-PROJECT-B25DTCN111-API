@@ -10,7 +10,7 @@ from schemas.campaign import (
     CampaignMemberResponse,
     CampaignMemberAdd,
 )
-from schemas.campaign_task import CampaignTaskCreate,CampaignTaskResponse,CampaignTaskUpdate
+from schemas.pagination import PaginatedResponse
 from dependencies.dep import get_current_user
 from models.user import User
 from service.service import *
@@ -28,13 +28,25 @@ def handle_create_campaign(
     return create_campaign(campaign_in=campaign, owner_id=current_user.id, db=db)
 
 
-@router.get("/", response_model=list[CampaignResponse])
+@router.get("/", response_model=PaginatedResponse[CampaignResponse])
 def handle_list_campaigns(
+    page: int = 1,
+    size: int = 10,
+    sort_by: str = "created_at",
+    order: str = "desc",
     search: str | None = None,
     db: Session = Depends(get_DB),
     current_user: User = Depends(get_current_user)
 ):
-    return list_campaigns(db=db, user_id=current_user.id, search=search)
+    return list_campaigns(
+        db=db,
+        user_id=current_user.id,
+        page=page,
+        size=size,
+        sort_by=sort_by,
+        order=order,
+        search=search,
+    )
 
 
 @router.get("/{campaign_id}", response_model=CampaignResponse)
@@ -113,30 +125,3 @@ def handle_delete_campaign_member(
         user_id=user_id,
         owner_id=current_user.id
     )
-@router.post("/{campaign_id}/campaign-tasks", status_code=status.HTTP_201_CREATED, response_model=CampaignTaskResponse)
-def handle_create_campaign_task(
-    campaign_id: int,
-    task: CampaignTaskCreate,
-    db: Session = Depends(get_DB),
-    current_user: User = Depends(get_current_user)
-):
-    return add_campaign_task(campaign_id=campaign_id, db=db, user_id=current_user.id, payload=task)
-
-
-@router.get("/{campaign_id}/campaign-tasks", status_code=status.HTTP_200_OK, response_model=list[CampaignTaskResponse])
-def handle_get_campaign_tasks(
-    campaign_id: int,
-    db: Session = Depends(get_DB),
-    current_user: User = Depends(get_current_user)
-):
-    return get_campaign_tasks(campaign_id=campaign_id, db=db, user_id=current_user.id)
-
-
-@router.delete("/campaign-tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def handle_delete_tasks(
-    task_id: int,
-    db: Session = Depends(get_DB),
-    current_user: User = Depends(get_current_user)
-):
-    delete_campaign_task(task_id=task_id, db=db, user_id=current_user.id)
-    return None

@@ -6,3 +6,5 @@ from schemas.campaign import (
 from schemas.campaign_task import (
     CampaignTaskBase, CampaignTaskCreate, CampaignTaskUpdate, CampaignTaskResponse,
 )
+from schemas.task_comment import TaskCommentCreate, TaskCommentResponse
+from schemas.pagination import PaginatedResponse

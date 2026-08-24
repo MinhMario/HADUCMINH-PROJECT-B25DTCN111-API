@@ -20,3 +20,5 @@ class User(Base):
     owned_campaigns = relationship("Campaign", back_populates="owner")
     memberships = relationship("CampaignMember", back_populates="user")
     assigned_tasks = relationship("CampaignTask", back_populates="assignee")
+    task_comments = relationship("TaskComment", back_populates="user")
+
