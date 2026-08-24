@@ -4,12 +4,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class CampaignTaskBase(BaseModel):
-    title: str
-    description: str 
-    assignee_id: int 
-    status: str = "TODO"          # TODO / IN_PROGRESS / DONE
+    title: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    due_date: datetime | None = None
     priority: str = "MEDIUM"      # LOW / MEDIUM / HIGH
-    due_date: datetime 
+    assignee_id: int | None = None
 
 
 class CampaignTaskCreate(CampaignTaskBase):
@@ -17,12 +16,12 @@ class CampaignTaskCreate(CampaignTaskBase):
 
 
 class CampaignTaskUpdate(BaseModel):
-    title: str 
-    description: str 
-    assignee_id: int 
-    status: str 
-    priority: str 
-    due_date: datetime 
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None 
+    assignee_id: int | None = None 
+    status: str | None = None 
+    priority: str | None = None 
+    due_date: datetime | None = None 
 
 
 class CampaignTaskResponse(CampaignTaskBase):
@@ -30,4 +29,6 @@ class CampaignTaskResponse(CampaignTaskBase):
 
     id: int
     campaign_id: int
+    assignee_id: int | None = None
+    status: str = "TODO"
     created_at: datetime

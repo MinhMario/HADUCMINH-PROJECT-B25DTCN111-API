@@ -5,6 +5,7 @@ from router.health import router
 from router.auth import router as auth_router
 from router.user import router as user_router
 from router.campaign import router as campaign_router
+from router.campaign_task import router as campaign_task_router
 
 from database import *
 from models import *
@@ -22,6 +23,7 @@ app.include_router(router)
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(campaign_router)
+app.include_router(campaign_task_router)
 app.add_exception_handler(BadRequestException, exception_handler)
 app.add_exception_handler(UnauthorizedException, exception_handler)
 app.add_exception_handler(NotFoundException, exception_handler)
