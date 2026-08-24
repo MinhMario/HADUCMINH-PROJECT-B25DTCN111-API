@@ -262,28 +262,48 @@ def get_campaign_members(campaign_id: int, db: Session, user_id: int):
     )
     
 def add_campaign_task(campaign_id: int, db: Session, user_id: int, payload: CampaignTaskCreate) -> CampaignTask:
-    campaign=db.query(Campaign).filter(Campaign.id==campaign_id,Campaign.is_deleted==False).first()
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id, Campaign.is_deleted == False).first()
     if not campaign:
         raise NotFoundException('Không tìm thấy chiến dịch')
-    is_member=db.query(CampaignMember).filter(CampaignMember.user_id==user_id,CampaignMember.campaign_id==campaign_id).first()
+    is_member = db.query(CampaignMember).filter(CampaignMember.user_id == user_id, CampaignMember.campaign_id == campaign_id).first()
     if not is_member:
-        raise NotFoundException('Bạn không phải thành viên')
-    new_task=CampaignTask(  
+        raise ForbiddenException('Bạn không phải thành viên của chiến dịch này')
+    new_task = CampaignTask(  
         campaign_id=campaign_id,
         title=payload.title,
         description=payload.description,
+        assignee_id=payload.assignee_id,
+        status=payload.status or "TODO",
         due_date=payload.due_date,
-        priority=payload.priority
+        priority=payload.priority or "MEDIUM"
     )
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
     return new_task
-def get_campaign_tasks(campaign_id:int,db:Session,user_id:int)->list[CampaignTask]:
-    campaign=db.query(Campaign).filter(Campaign.id==campaign_id,Campaign.is_deleted==False).first()
+
+
+def get_campaign_tasks(campaign_id: int, db: Session, user_id: int) -> list[CampaignTask]:
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id, Campaign.is_deleted == False).first()
     if not campaign:
         raise NotFoundException('Không tìm thấy chiến dịch')
-    is_member=db.query(CampaignMember).filter(CampaignMember.user_id==user_id,CampaignMember.campaign_id==campaign_id).first()
+    is_member = db.query(CampaignMember).filter(CampaignMember.user_id == user_id, CampaignMember.campaign_id == campaign_id).first()
     if not is_member:
-        raise NotFoundException('Bạn không phải thành viên')
-    return db.query(CampaignTask).filter(CampaignTask.campaign_id==campaign_id).all()
+        raise ForbiddenException('Bạn không phải thành viên của chiến dịch này')
+    return db.query(CampaignTask).filter(CampaignTask.campaign_id == campaign_id).all()
+
+
+def delete_campaign_task(task_id: int, db: Session, user_id: int):
+    task = db.query(CampaignTask).filter(CampaignTask.id == task_id).first()
+    if not task:
+        raise NotFoundException('Không tìm thấy đầu việc')
+    campaign = db.query(Campaign).filter(Campaign.id == task.campaign_id, Campaign.is_deleted == False).first()
+    if not campaign:
+        raise NotFoundException('Không tìm thấy chiến dịch')
+    is_member = db.query(CampaignMember).filter(CampaignMember.user_id == user_id, CampaignMember.campaign_id == task.campaign_id).first()
+    if not is_member:
+        raise ForbiddenException('Bạn không phải thành viên của chiến dịch này')
+    db.delete(task)
+    db.commit()
+    return task
+
