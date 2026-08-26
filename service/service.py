@@ -36,11 +36,10 @@ def paginate(query: Query, page: int = 1, size: int = 10) -> dict:
 
 def apply_sorting(
     query: Query,
-    sort_by: str | None = None,
-    order: str = "asc",
+    sort_by: str | None = "created_at",
+    order: str = "desc",
     sort_mapping: dict | None = None,
     default_col = None,
-    nulls_last_fields: list[str] | None = None,
 ) -> Query:
     if not sort_mapping:
         return query
@@ -50,13 +49,7 @@ def apply_sorting(
         return query
 
     is_desc = (order or "asc").lower() == "desc"
-
-    if nulls_last_fields and sort_by in nulls_last_fields and not is_desc:
-        return query.order_by(col.is_(None), col.asc())
-
-    if is_desc:
-        return query.order_by(col.desc())
-    return query.order_by(col.asc())
+    return query.order_by(col.desc() if is_desc else col.asc())
 
 
 
@@ -415,22 +408,9 @@ def get_campaign_tasks(
         search = search.strip()
         query = query.filter(CampaignTask.title.ilike(f"%{search}%"))
 
-    sort_mapping = {
-        "created_at": CampaignTask.created_at,
-        "due_date": CampaignTask.due_date,
-        "priority": CampaignTask.priority,
-        "status": CampaignTask.status,
-        "title": CampaignTask.title,
-        "id": CampaignTask.id,
-    }
-    query = apply_sorting(
-        query,
-        sort_by=sort_by,
-        order=order,
-        sort_mapping=sort_mapping,
-        default_col=CampaignTask.created_at,
-        nulls_last_fields=["due_date"]
-    )
+    # Sort đơn giản theo due_date hoặc created_at
+    col = CampaignTask.due_date if sort_by == "due_date" else CampaignTask.created_at
+    query = query.order_by(col.desc() if order == "desc" else col.asc())
 
     return paginate(query, page=page, size=size)
 
