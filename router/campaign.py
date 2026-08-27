@@ -32,8 +32,6 @@ def handle_create_campaign(
 def handle_list_campaigns(
     page: int = 1,
     size: int = 10,
-    sort_by: str = "created_at",
-    order: str = "desc",
     search: str | None = None,
     db: Session = Depends(get_DB),
     current_user: User = Depends(get_current_user)
@@ -43,8 +41,6 @@ def handle_list_campaigns(
         user_id=current_user.id,
         page=page,
         size=size,
-        sort_by=sort_by,
-        order=order,
         search=search,
     )
 

@@ -16,6 +16,8 @@ from models.task_comment import TaskComment
 
 
 def paginate(query: Query, page: int = 1, size: int = 10) -> dict:
+    page = page or 1
+    size = size or 10
     if page < 1:
         page = 1
     if size < 1:
@@ -36,19 +38,11 @@ def paginate(query: Query, page: int = 1, size: int = 10) -> dict:
 
 def apply_sorting(
     query: Query,
-    sort_by: str | None = "created_at",
+    sort_by: str = "created_at",
     order: str = "desc",
-    sort_mapping: dict | None = None,
-    default_col = None,
 ) -> Query:
-    if not sort_mapping:
-        return query
-
-    col = sort_mapping.get(sort_by, default_col)
-    if col is None:
-        return query
-
-    is_desc = (order or "asc").lower() == "desc"
+    col = CampaignTask.due_date if sort_by == "due_date" else CampaignTask.created_at
+    is_desc = (order or "desc").lower() == "desc"
     return query.order_by(col.desc() if is_desc else col.asc())
 
 
@@ -107,13 +101,10 @@ def get_users(
     if is_active is not None:
         query = query.filter(User.is_active == is_active)
 
-    sort_mapping = {
-        "id": User.id,
-        "full_name": User.full_name,
-        "email": User.email,
-        "role": User.role,
-    }
-    query = apply_sorting(query, sort_by=sort_by, order=order, sort_mapping=sort_mapping, default_col=User.id)
+    _sort_map = {"id": User.id, "full_name": User.full_name, "email": User.email, "role": User.role}
+    col = _sort_map.get(sort_by, User.id)
+    is_desc = (order or "asc").lower() == "desc"
+    query = query.order_by(col.desc() if is_desc else col.asc())
 
     return paginate(query, page=page, size=size)
 
@@ -144,8 +135,6 @@ def list_campaigns(
     user_id: int,
     page: int = 1,
     size: int = 10,
-    sort_by: str = "created_at",
-    order: str = "desc",
     search: str | None = None
 ):
     member_campaign_ids = (
@@ -165,12 +154,7 @@ def list_campaigns(
         search = search.strip()
         query = query.filter(Campaign.name.ilike(f"%{search}%"))
 
-    sort_mapping = {
-        "created_at": Campaign.created_at,
-        "name": Campaign.name,
-        "id": Campaign.id,
-    }
-    query = apply_sorting(query, sort_by=sort_by, order=order, sort_mapping=sort_mapping, default_col=Campaign.created_at)
+    query = query.order_by(Campaign.created_at.desc())
 
     return paginate(query, page=page, size=size)
 
@@ -408,9 +392,7 @@ def get_campaign_tasks(
         search = search.strip()
         query = query.filter(CampaignTask.title.ilike(f"%{search}%"))
 
-    # Sort đơn giản theo due_date hoặc created_at
-    col = CampaignTask.due_date if sort_by == "due_date" else CampaignTask.created_at
-    query = query.order_by(col.desc() if order == "desc" else col.asc())
+    query = apply_sorting(query, sort_by=sort_by, order=order)
 
     return paginate(query, page=page, size=size)
 
@@ -585,13 +567,8 @@ def get_task_comments(
         raise ForbiddenException("Bạn không phải thành viên của chiến dịch này")
 
     query = db.query(TaskComment).filter(TaskComment.task_id == task_id)
-    query = apply_sorting(
-        query,
-        sort_by=sort_by,
-        order=order,
-        sort_mapping={"created_at": TaskComment.created_at},
-        default_col=TaskComment.created_at
-    )
+    is_desc = (order or "asc").lower() == "desc"
+    query = query.order_by(TaskComment.created_at.desc() if is_desc else TaskComment.created_at.asc())
 
     return paginate(query, page=page, size=size)
 
