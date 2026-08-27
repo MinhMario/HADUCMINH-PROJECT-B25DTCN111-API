@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 
 from schemas.user import UserResponse
 from schemas.pagination import PaginatedResponse
@@ -11,12 +11,12 @@ from models.user import User
 router = APIRouter(prefix='/users', tags=["User"])
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
 def read_current_user(current_user:User=Depends(get_current_user)):
     return current_user
 
 
-@router.get("/", response_model=PaginatedResponse[UserResponse])
+@router.get("/", response_model=PaginatedResponse[UserResponse], status_code=status.HTTP_200_OK)
 def handle_read_user(
     page: int = 1,
     size: int = 10,

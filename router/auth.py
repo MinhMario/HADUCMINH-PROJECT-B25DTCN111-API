@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends,status
 from schemas.user import *
 from database import *
 from service.service import *
@@ -10,13 +10,13 @@ from models.user import User
 
 router = APIRouter(prefix='/auth',tags=["Authentication"])
 
-@router.post('/register',response_model=UserResponse)
+@router.post('/register',response_model=UserResponse,status_code=status.HTTP_201_CREATED)
 def handle_create_user(user:UserCreate,db:Session=Depends(get_DB)):
     new_user=create_user(user,db)
     return new_user
 
 
-@router.post('/login', response_model=Token)
+@router.post('/login', response_model=Token, status_code=status.HTTP_200_OK)
 def handle_login(credentials: UserLogin, db: Session = Depends(get_DB)):
     user = authenticate_user(credentials, db)
     access_token = create_access_token(
@@ -33,7 +33,7 @@ def handle_login(credentials: UserLogin, db: Session = Depends(get_DB)):
     )
 
 
-@router.post('/refresh', response_model=Token)
+@router.post('/refresh', response_model=Token, status_code=status.HTTP_200_OK)
 def handle_refresh(payload: RefreshRequest, db: Session = Depends(get_DB)):
     token_data = decode_access_token(payload.refresh_token)
 

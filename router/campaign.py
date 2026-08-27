@@ -28,7 +28,7 @@ def handle_create_campaign(
     return create_campaign(campaign_in=campaign, owner_id=current_user.id, db=db)
 
 
-@router.get("/", response_model=PaginatedResponse[CampaignResponse])
+@router.get("/", response_model=PaginatedResponse[CampaignResponse], status_code=status.HTTP_200_OK)
 def handle_list_campaigns(
     page: int = 1,
     size: int = 10,
@@ -45,7 +45,7 @@ def handle_list_campaigns(
     )
 
 
-@router.get("/{campaign_id}", response_model=CampaignResponse)
+@router.get("/{campaign_id}", response_model=CampaignResponse, status_code=status.HTTP_200_OK)
 def get_campaign(
     campaign_id: int,
     db: Session = Depends(get_DB),
@@ -54,7 +54,7 @@ def get_campaign(
     return read_campaigns(campaign_id, db, user.id)
 
 
-@router.put("/{campaign_id}", response_model=CampaignResponse)
+@router.put("/{campaign_id}", response_model=CampaignResponse, status_code=status.HTTP_200_OK)
 def handle_update_campaign(
     campaign_id: int,
     campaign_update: CampaignUpdate,
@@ -64,7 +64,7 @@ def handle_update_campaign(
     return update_campaign(campaign_id=campaign_id, db=db, owner_id=current_user.id, payload=campaign_update)
 
 
-@router.patch("/{campaign_id}", response_model=CampaignResponse)
+@router.patch("/{campaign_id}", response_model=CampaignResponse, status_code=status.HTTP_200_OK)
 def handle_patch_campaign(
     campaign_id: int,
     campaign_patch: CampaignPatch,
@@ -75,7 +75,7 @@ def handle_patch_campaign(
 
 
 
-@router.delete("/{campaign_id}", response_model=CampaignResponse)
+@router.delete("/{campaign_id}", response_model=CampaignResponse, status_code=status.HTTP_200_OK)
 def handle_delete_campaign(
     campaign_id: int,
     db: Session = Depends(get_DB),
@@ -99,7 +99,7 @@ def handle_add_campaign_member(
     )
 
 
-@router.get("/{campaign_id}/members", response_model=list[CampaignMemberResponse])
+@router.get("/{campaign_id}/members", response_model=list[CampaignMemberResponse], status_code=status.HTTP_200_OK)
 def handle_get_campaign_members(
     campaign_id: int,
     db: Session = Depends(get_DB),

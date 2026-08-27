@@ -99,6 +99,7 @@ def handle_get_campaign_task_by_id(
 
 @router.patch(
     "/campaign-tasks/{id}",
+    status_code=status.HTTP_200_OK,
     response_model=CampaignTaskResponse,
 )
 def handle_patch_campaign_task(
@@ -115,7 +116,10 @@ def handle_patch_campaign_task(
     )
 
 
-@router.delete("/campaign-tasks/{id}")
+@router.delete(
+    "/campaign-tasks/{id}",
+    status_code=status.HTTP_200_OK,
+)
 def handle_delete_campaign_task(
     id: int,
     db: Session = Depends(get_DB),
