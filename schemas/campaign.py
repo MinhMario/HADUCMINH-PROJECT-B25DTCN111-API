@@ -5,12 +5,12 @@ from pydantic import BaseModel, ConfigDict,Field
 
 class CampaignBase(BaseModel):
     name: str = Field(min_length=1, max_length=255)
-    description: str
+    description: str | None = None
 
 
 class CampaignUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
-    description: str
+    description: str | None = None
 
 
 class CampaignPatch(BaseModel):

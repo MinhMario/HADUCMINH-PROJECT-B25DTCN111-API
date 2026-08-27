@@ -266,7 +266,7 @@ def delete_campaign_member(campaign_id: int, db: Session, user_id: int, owner_id
         Campaign.is_deleted == False
     ).first()
 
-    if not campaign:
+    if not campaign and campaign:
         raise NotFoundException("Campaign không tồn tại")
 
     if campaign.owner_id != owner_id:
