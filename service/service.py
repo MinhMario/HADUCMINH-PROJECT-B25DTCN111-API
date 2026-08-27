@@ -177,7 +177,7 @@ def read_campaigns(campaign_id: int, db: Session, user_id: int) -> Campaign:
         .first()
     )
 
-    if not is_member:
+    if not is_member and campaign.owner_id != user_id:
         raise ForbiddenException("Bạn không phải thành viên của campaign này")
 
     return campaign
@@ -266,7 +266,7 @@ def delete_campaign_member(campaign_id: int, db: Session, user_id: int, owner_id
         Campaign.is_deleted == False
     ).first()
 
-    if not campaign and campaign:
+    if not campaign:
         raise NotFoundException("Campaign không tồn tại")
 
     if campaign.owner_id != owner_id:
@@ -308,7 +308,7 @@ def get_campaign_members(campaign_id: int, db: Session, user_id: int):
         )
         .first()
     )
-    if not is_member:
+    if not is_member and campaign.owner_id != user_id:
         raise ForbiddenException("Bạn không phải thành viên của campaign này")
 
     return (
@@ -383,9 +383,9 @@ def get_campaign_tasks(
     query = db.query(CampaignTask).filter(CampaignTask.campaign_id == campaign_id)
 
     if status:
-        query = query.filter(CampaignTask.status == status)
+        query = query.filter(CampaignTask.status == status.strip().upper())
     if priority:
-        query = query.filter(CampaignTask.priority == priority)
+        query = query.filter(CampaignTask.priority == priority.strip().upper())
     if assignee_id is not None:
         query = query.filter(CampaignTask.assignee_id == assignee_id)
     if search:

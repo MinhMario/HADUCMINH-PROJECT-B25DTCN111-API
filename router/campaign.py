@@ -115,9 +115,10 @@ def handle_delete_campaign_member(
     db: Session = Depends(get_DB),
     current_user: User = Depends(get_current_user)
 ):
-    return  delete_campaign_member(
+    delete_campaign_member(
         campaign_id=campaign_id,
         db=db,
         user_id=user_id,
         owner_id=current_user.id
     )
+    return None
