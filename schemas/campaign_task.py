@@ -12,7 +12,7 @@ class CampaignTaskBase(BaseModel):
 
 class CampaignTaskCreate(CampaignTaskBase):
     status: str = "TODO"          # TODO / IN_PROGRESS / DONE
-
+    
 
 class CampaignTaskUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)

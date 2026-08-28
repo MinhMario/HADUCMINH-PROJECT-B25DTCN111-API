@@ -4,7 +4,7 @@ from sqlalchemy import or_, asc, desc
 
 from core.exceptions import BadRequestException, ForbiddenException, NotFoundException
 from core.security import hash_pass, verify_pass
-from datetime import datetime
+from datetime import datetime,timezone
 from schemas.user import UserCreate, UserLogin
 from schemas.campaign import CampaignCreate, CampaignUpdate, CampaignPatch
 from schemas.campaign_task import CampaignTaskCreate, CampaignTaskUpdate
@@ -217,7 +217,7 @@ def delete_campaign(campaign_id: int, db: Session, owner_id: int):
         raise ForbiddenException("Bạn không phải chủ của campaign này")
 
     campaign.is_deleted = True
-    campaign.deleted_at = datetime.utcnow()
+    campaign.deleted_at = datetime.now(timezone.utc)
     db.commit()
     return campaign
 
