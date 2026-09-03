@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_DB

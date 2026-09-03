@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI
+from fastapi import FastAPI
 from app.db.database import engine, Base
 from app.core.exceptions import (
     BadRequestException, UnauthorizedException,

@@ -1,4 +1,4 @@
-﻿from app.schemas.user import UserBase, UserCreate, UserUpdate, UserResponse, UserLogin, Token, RefreshRequest
+from app.schemas.user import UserBase, UserCreate, UserUpdate, UserResponse, UserLogin, Token, RefreshRequest
 from app.schemas.campaign import (
     CampaignBase, CampaignCreate, CampaignUpdate, CampaignPatch, CampaignResponse,
     CampaignMemberBase, CampaignMemberAdd, CampaignMemberCreate, CampaignMemberUpdate, CampaignMemberResponse,

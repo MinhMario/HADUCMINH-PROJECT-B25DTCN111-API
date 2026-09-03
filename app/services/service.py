@@ -42,10 +42,12 @@ def apply_sorting(query: Query, sort_by: str = "created_at", order: str = "desc"
 # ── USER ──────────────────────────────────────────────────────────────────────
 
 def create_user(user: UserCreate, db: Session):
+    if not user.full_name or not user.full_name.strip():
+        raise BadRequestException("Họ và tên không được để trống")
     if db.query(User).filter(User.email == user.email).first():
         raise BadRequestException("Email đã bị trùng")
     new_user = User(
-        full_name=user.full_name,
+        full_name=user.full_name.strip(),
         email=user.email,
         password_hash=hash_pass(user.password),
         role="USER",
@@ -86,7 +88,9 @@ def get_users(db: Session, page: int = 1, size: int = 10, sort_by: str = "id",
 # ── CAMPAIGN ──────────────────────────────────────────────────────────────────
 
 def create_campaign(campaign_in: CampaignCreate, owner_id: int, db: Session) -> Campaign:
-    new_campaign = Campaign(name=campaign_in.name, description=campaign_in.description, owner_id=owner_id)
+    if not campaign_in.name or not campaign_in.name.strip():
+        raise BadRequestException("Tên chiến dịch không được để trống")
+    new_campaign = Campaign(name=campaign_in.name.strip(), description=campaign_in.description, owner_id=owner_id)
     db.add(new_campaign)
     db.commit()
     db.refresh(new_campaign)
@@ -126,7 +130,12 @@ def update_campaign(campaign_id: int, db: Session, owner_id: int,
         raise NotFoundException("Campaign không tồn tại")
     if campaign.owner_id != owner_id:
         raise ForbiddenException("Bạn không phải chủ của campaign này")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    if "name" in update_data:
+        if update_data["name"] is None or not str(update_data["name"]).strip():
+            raise BadRequestException("Tên chiến dịch không được để trống")
+        update_data["name"] = str(update_data["name"]).strip()
+    for field, value in update_data.items():
         setattr(campaign, field, value)
     db.commit()
     db.refresh(campaign)
@@ -206,6 +215,8 @@ def add_campaign_task(campaign_id: int, db: Session, user_id: int, payload: Camp
     ).first()
     if not is_member and campaign.owner_id != user_id:
         raise ForbiddenException("Bạn không phải thành viên của chiến dịch này")
+    if not payload.title or not payload.title.strip():
+        raise BadRequestException("Tiêu đề công việc không được để trống")
     if payload.status and payload.status.upper() not in VALID_TASK_STATUSES:
         raise BadRequestException("Trạng thái không hợp lệ (chỉ chấp nhận TODO, IN_PROGRESS, DONE)")
     if payload.priority and payload.priority.upper() not in VALID_TASK_PRIORITIES:
@@ -220,7 +231,7 @@ def add_campaign_task(campaign_id: int, db: Session, user_id: int, payload: Camp
             raise BadRequestException("Người được gán không thuộc chiến dịch này")
     
     new_task = CampaignTask(
-        campaign_id=campaign_id, title=payload.title, description=payload.description,
+        campaign_id=campaign_id, title=payload.title.strip(), description=payload.description,
         due_date=payload.due_date or datetime.now(timezone.utc)+timedelta(days=3),
         priority=payload.priority.upper() if payload.priority else "MEDIUM",
         status=payload.status.upper() if payload.status else "TODO",
@@ -286,20 +297,24 @@ def update_campaign_task(task_id: int, db: Session, user_id: int, payload: Campa
     if not is_owner and is_assignee:
         if set(update_data.keys()) - {"status"}:
             raise ForbiddenException("Assignee chỉ có quyền cập nhật trạng thái (status) của task")
+    if "title" in update_data:
+        if update_data["title"] is None or not str(update_data["title"]).strip():
+            raise BadRequestException("Tiêu đề công việc không được để trống")
+        update_data["title"] = str(update_data["title"]).strip()
     if "assignee_id" in update_data and update_data["assignee_id"] is not None:
         is_assignee_member = db.query(CampaignMember).filter(
             CampaignMember.campaign_id == campaign.id, CampaignMember.user_id == update_data["assignee_id"]
         ).first()
         if not is_assignee_member and campaign.owner_id != update_data["assignee_id"]:
             raise BadRequestException("Người được gán không thuộc chiến dịch này")
-    if "status" in update_data and update_data["status"]:
-        if update_data["status"].upper() not in VALID_TASK_STATUSES:
+    if "status" in update_data:
+        if not update_data["status"] or str(update_data["status"]).upper() not in VALID_TASK_STATUSES:
             raise BadRequestException("Trạng thái không hợp lệ (chỉ chấp nhận TODO, IN_PROGRESS, DONE)")
-        update_data["status"] = update_data["status"].upper()
-    if "priority" in update_data and update_data["priority"]:
-        if update_data["priority"].upper() not in VALID_TASK_PRIORITIES:
+        update_data["status"] = str(update_data["status"]).upper()
+    if "priority" in update_data:
+        if not update_data["priority"] or str(update_data["priority"]).upper() not in VALID_TASK_PRIORITIES:
             raise BadRequestException("Độ ưu tiên không hợp lệ (chỉ chấp nhận LOW, MEDIUM, HIGH)")
-        update_data["priority"] = update_data["priority"].upper()
+        update_data["priority"] = str(update_data["priority"]).upper()
     if "due_date" in update_data and update_data["due_date"] is not None:
         if _as_utc(update_data["due_date"]) < datetime.now(timezone.utc) + timedelta(hours=1):
             raise BadRequestException("due_date phải lớn hơn thời điểm hiện tại ít nhất 1 giờ")
@@ -338,6 +353,8 @@ def create_task_comment(task_id: int, user_id: int, payload: TaskCommentCreate, 
     ).first()
     if not is_member and campaign.owner_id != user_id:
         raise ForbiddenException("Bạn không phải thành viên của chiến dịch này")
+    if not payload.content or not payload.content.strip():
+        raise BadRequestException("Nội dung bình luận không được để trống")
     new_comment = TaskComment(task_id=task_id, user_id=user_id, content=payload.content.strip())
     db.add(new_comment)
     db.commit()

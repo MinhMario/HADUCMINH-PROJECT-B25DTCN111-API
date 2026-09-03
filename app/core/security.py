@@ -1,4 +1,4 @@
-﻿import bcrypt
+import bcrypt
 from datetime import datetime, timezone, timedelta
 from jose import ExpiredSignatureError, JWTError, jwt
 from app.core.config import SECRET_KEY, JWT_ALGORITHM, ACCESS_TOKEN_TIME, REFRESH_TOKEN_TIME
