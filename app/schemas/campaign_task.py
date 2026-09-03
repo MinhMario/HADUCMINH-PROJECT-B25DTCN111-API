@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -31,3 +31,4 @@ class CampaignTaskResponse(CampaignTaskBase):
     assignee_id: int | None = None
     status: str = "TODO"
     created_at: datetime
+

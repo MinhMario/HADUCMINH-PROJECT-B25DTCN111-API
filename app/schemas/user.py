@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
 
@@ -28,7 +28,7 @@ class UserResponse(UserBase):
 
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6, max_length=100)
+    password: str
 
 
 class Token(BaseModel):

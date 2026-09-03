@@ -1,5 +1,5 @@
-﻿import math
-from datetime import datetime, timezone
+import math
+from datetime import datetime, timezone,timedelta
 from sqlalchemy.orm import Session, Query
 from sqlalchemy import or_
 
@@ -17,6 +17,11 @@ from app.models.task_comment import TaskComment
 
 VALID_TASK_STATUSES = {"TODO", "IN_PROGRESS", "DONE"}
 VALID_TASK_PRIORITIES = {"LOW", "MEDIUM", "HIGH"}
+
+
+def _as_utc(dt: datetime) -> datetime:
+    """Ép datetime naive về UTC-aware nếu cần."""
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def paginate(query: Query, page: int = 1, size: int = 10) -> dict:
@@ -205,18 +210,21 @@ def add_campaign_task(campaign_id: int, db: Session, user_id: int, payload: Camp
         raise BadRequestException("Trạng thái không hợp lệ (chỉ chấp nhận TODO, IN_PROGRESS, DONE)")
     if payload.priority and payload.priority.upper() not in VALID_TASK_PRIORITIES:
         raise BadRequestException("Độ ưu tiên không hợp lệ (chỉ chấp nhận LOW, MEDIUM, HIGH)")
+    if payload.due_date is not None and _as_utc(payload.due_date) < datetime.now(timezone.utc) + timedelta(hours=1):
+        raise BadRequestException("due_date phải lớn hơn thời điểm hiện tại ít nhất 1 giờ")
     if payload.assignee_id is not None:
         is_assignee_member = db.query(CampaignMember).filter(
             CampaignMember.campaign_id == campaign_id, CampaignMember.user_id == payload.assignee_id
         ).first()
         if not is_assignee_member and campaign.owner_id != payload.assignee_id:
             raise BadRequestException("Người được gán không thuộc chiến dịch này")
+    
     new_task = CampaignTask(
         campaign_id=campaign_id, title=payload.title, description=payload.description,
-        due_date=payload.due_date,
+        due_date=payload.due_date or datetime.now(timezone.utc)+timedelta(days=3),
         priority=payload.priority.upper() if payload.priority else "MEDIUM",
         status=payload.status.upper() if payload.status else "TODO",
-        assignee_id=payload.assignee_id
+        assignee_id=payload.assignee_id or user_id
     )
     db.add(new_task)
     db.commit()
@@ -292,6 +300,9 @@ def update_campaign_task(task_id: int, db: Session, user_id: int, payload: Campa
         if update_data["priority"].upper() not in VALID_TASK_PRIORITIES:
             raise BadRequestException("Độ ưu tiên không hợp lệ (chỉ chấp nhận LOW, MEDIUM, HIGH)")
         update_data["priority"] = update_data["priority"].upper()
+    if "due_date" in update_data and update_data["due_date"] is not None:
+        if _as_utc(update_data["due_date"]) < datetime.now(timezone.utc) + timedelta(hours=1):
+            raise BadRequestException("due_date phải lớn hơn thời điểm hiện tại ít nhất 1 giờ")
     for field, value in update_data.items():
         setattr(task, field, value)
     db.commit()
