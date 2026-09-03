@@ -1,10 +1,9 @@
-from database import SessionLocal
-
-from core.security import hash_pass
-from models.user import User
-from models.campaign import Campaign, CampaignMember
-from models.campaign_task import CampaignTask
-from models.task_comment import TaskComment
+from app.db.database import SessionLocal
+from app.core.security import hash_pass
+from app.models.user import User
+from app.models.campaign import Campaign, CampaignMember
+from app.models.campaign_task import CampaignTask
+from app.models.task_comment import TaskComment
 
 
 def seed_data():
